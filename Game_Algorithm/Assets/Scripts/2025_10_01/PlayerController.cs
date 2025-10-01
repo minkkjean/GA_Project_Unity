@@ -1,36 +1,48 @@
 using UnityEngine;
-using System.Collections;
+using System.Collections.Generic; // Queue를 사용하기 위해 필요
 
+[RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
+    public float moveDistance = 1.0f; // 한 번에 이동할 거리
     private CharacterController controller;
-    public float moveDuration = 0.3f;
+
+    // 이동 명령을 저장할 큐(Queue)
+    private Queue<Vector3> commandQueue = new Queue<Vector3>();
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
     }
 
-    // GameManager로부터 이동 방향을 직접 받아 부드럽게 움직이는 코루틴
-    public IEnumerator ExecuteMoveSmoothly(Vector3 moveDirection)
+    // GameManager가 호출할 입력 처리 함수
+    public void RecordInput()
     {
-        Vector3 startPos = transform.position;
-        Vector3 targetPos = startPos + moveDirection;
-        float elapsedTime = 0f;
-
-        while (elapsedTime < moveDuration)
-        {
-            transform.position = Vector3.Lerp(startPos, targetPos, elapsedTime / moveDuration);
-            elapsedTime += Time.deltaTime;
-            yield return null;
-        }
-        transform.position = targetPos;
+        if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow)) commandQueue.Enqueue(Vector3.forward);
+        else if (Input.GetKeyDown(KeyCode.S) || Input.GetKeyDown(KeyCode.DownArrow)) commandQueue.Enqueue(Vector3.back);
+        else if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow)) commandQueue.Enqueue(Vector3.left);
+        else if (Input.GetKeyDown(KeyCode.D) || Input.GetKeyDown(KeyCode.RightArrow)) commandQueue.Enqueue(Vector3.right);
     }
 
-    public void ResetPosition(Vector3 position)
+    // 큐에서 명령을 하나 꺼내 실행하는 함수
+    public void ExecuteNextCommand()
     {
-        controller.enabled = false;
-        transform.position = position;
-        controller.enabled = true;
+        if (commandQueue.Count > 0)
+        {
+            Vector3 moveDirection = commandQueue.Dequeue();
+            controller.Move(moveDirection * moveDistance);
+        }
+    }
+
+    // 현재 큐에 쌓인 명령 수를 반환하는 함수
+    public int GetQueueCount()
+    {
+        return commandQueue.Count;
+    }
+
+    // 큐를 깨끗하게 비우는 함수
+    public void ClearQueue()
+    {
+        commandQueue.Clear();
     }
 }

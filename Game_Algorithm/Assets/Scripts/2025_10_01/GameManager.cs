@@ -1,128 +1,77 @@
 using UnityEngine;
-using UnityEngine.UI;
+using UnityEngine.UI; // 레거시 UI Text를 사용하기 위해 필요
 using System.Collections;
-using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
-    public enum GameState { Idle, Recording, Playing, Reversing }
+    public enum GameState { Idle, Recording, Playing }
     public GameState currentState = GameState.Idle;
 
     [Header("연결 요소")]
     public PlayerController playerController;
-    public Text queueCountText;
-    public Material defaultMaterial;
-    public Material playbackMaterial;
+    public Text queueCountText; // 레거시 Text
 
     [Header("설정")]
-    public float pauseBetweenMoves = 0.1f;
+    public float playbackDelay = 0.5f; // 각 명령 실행 사이의 시간 간격
 
     private Vector3 startPosition;
-    private Renderer playerRenderer;
-    private List<Vector3> commandHistory = new List<Vector3>();
 
-    void Start()
-    {
-        if (playerController != null)
-        {
-            playerRenderer = playerController.GetComponent<Renderer>();
-        }
-    }
-
-    // --- [수정된 부분 1] ---
     void Update()
     {
+        // '녹화 중'일 때만 키보드 입력을 받음
         if (currentState == GameState.Recording)
         {
-            HandleRecordingInput();
+            playerController.RecordInput();
         }
 
-        if (currentState == GameState.Idle && Input.GetKeyDown(KeyCode.R))
-        {
-            OnReverseButtonPressed();
-        }
-
-        // 재생 또는 역재생 중이 아닐 때만 총 카운트를 표시하도록 변경
-        if (currentState != GameState.Playing && currentState != GameState.Reversing)
-        {
-            queueCountText.text = "Queue Count : " + commandHistory.Count;
-        }
+        // 항상 UI 텍스트를 현재 큐 카운트로 업데이트
+        queueCountText.text = "Queue Count : " + playerController.GetQueueCount();
     }
 
-    private void HandleRecordingInput()
-    {
-        if (Input.GetKeyDown(KeyCode.W)) commandHistory.Add(Vector3.forward);
-        else if (Input.GetKeyDown(KeyCode.S)) commandHistory.Add(Vector3.back);
-        else if (Input.GetKeyDown(KeyCode.A)) commandHistory.Add(Vector3.left);
-        else if (Input.GetKeyDown(KeyCode.D)) commandHistory.Add(Vector3.right);
-    }
-
+    // 'Record' 버튼을 눌렀을 때 실행될 함수
     public void OnRecordButtonPressed()
     {
+        // 녹화 시작
         currentState = GameState.Recording;
+
+        // 현재 위치를 시작 위치로 저장하고, 이전 명령은 모두 삭제
         startPosition = playerController.transform.position;
-        commandHistory.Clear();
+        playerController.ClearQueue();
+
+        Debug.Log("녹화를 시작합니다. 큐브는 움직이지 않고 입력만 받습니다.");
     }
 
+    // 'Play' 버튼을 눌렀을 때 실행될 함수
     public void OnPlayButtonPressed()
     {
-        if (currentState == GameState.Playing || currentState == GameState.Reversing || commandHistory.Count == 0)
+        // 녹화 중이거나 재생할 명령이 없으면 실행하지 않음
+        if (currentState == GameState.Playing || playerController.GetQueueCount() == 0)
         {
             return;
         }
 
+        // 녹화 모드를 멈추고 재생 시작
         currentState = GameState.Playing;
+
+        // 플레이어를 녹화 시작 위치로 되돌림
+        playerController.transform.position = startPosition;
+
         StartCoroutine(ReplayCommandsRoutine());
+        Debug.Log("녹화된 명령을 재생합니다.");
     }
 
-    public void OnReverseButtonPressed()
-    {
-        if (currentState == GameState.Playing || currentState == GameState.Reversing || commandHistory.Count == 0)
-        {
-            return;
-        }
-
-        currentState = GameState.Reversing;
-        StartCoroutine(ReversePlaybackRoutine());
-    }
-
+    // 기록된 명령을 순서대로 재생하는 코루틴
     IEnumerator ReplayCommandsRoutine()
     {
-        if (playerRenderer != null) playerRenderer.material = playbackMaterial;
-        playerController.ResetPosition(startPosition);
-        yield return new WaitForSeconds(1f);
-
-        // --- [수정된 부분 2] --- (사용자 경험을 위해 정방향 재생에도 카운트 추가)
-        for (int i = 0; i < commandHistory.Count; i++)
+        // 큐에 명령이 남아있는 동안 반복
+        while (playerController.GetQueueCount() > 0)
         {
-            // 숫자가 1부터 올라가도록 표시
-            queueCountText.text = "Queue Count : " + (i + 1);
-            Vector3 moveDirection = commandHistory[i];
-            yield return StartCoroutine(playerController.ExecuteMoveSmoothly(moveDirection));
-            yield return new WaitForSeconds(pauseBetweenMoves);
+            playerController.ExecuteNextCommand();
+            yield return new WaitForSeconds(playbackDelay); // 지정된 시간만큼 대기
         }
 
-        if (playerRenderer != null) playerRenderer.material = defaultMaterial;
+        // 재생이 끝나면 다시 대기 상태로
         currentState = GameState.Idle;
-    }
-
-    IEnumerator ReversePlaybackRoutine()
-    {
-        if (playerRenderer != null) playerRenderer.material = playbackMaterial;
-        yield return new WaitForSeconds(0.5f);
-
-        // --- [수정된 부분 3] ---
-        for (int i = commandHistory.Count - 1; i >= 0; i--)
-        {
-            // 숫자가 하나씩 거꾸로 내려가도록 표시
-            queueCountText.text = "Queue Count : " + i;
-            Vector3 reverseDirection = -commandHistory[i];
-            yield return StartCoroutine(playerController.ExecuteMoveSmoothly(reverseDirection));
-            yield return new WaitForSeconds(pauseBetweenMoves);
-        }
-
-        if (playerRenderer != null) playerRenderer.material = defaultMaterial;
-        playerController.ResetPosition(startPosition);
-        currentState = GameState.Idle;
+        Debug.Log("재생 완료.");
     }
 }
