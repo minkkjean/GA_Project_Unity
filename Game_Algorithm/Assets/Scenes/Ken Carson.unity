@@ -138,7 +138,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &116835061
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -153,7 +153,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   width: 21
   height: 21
-  wallPercent: 10
+  wallPercent: 9
   wallPrefab: {fileID: 45909826058896125, guid: 7f1a23aaea0190d448b0a80e40542eda,
     type: 3}
   groundPrefab: {fileID: 2505653597001820616, guid: 201c429cb05006f46acd37eadb5f133e,
@@ -200,7 +200,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &357327492
 MonoBehaviour:
   m_ObjectHideFlags: 0
